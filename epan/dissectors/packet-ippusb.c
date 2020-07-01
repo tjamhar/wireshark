@@ -30,6 +30,7 @@
 
 void proto_register_ippusb(void);
 void proto_reg_handoff_ippusb(void);
+static int is_http_header(int first_linelen, const guchar *first_line); 
 
 static int proto_ippusb = -1;
 static gint ett_ippusb = -1;
@@ -74,34 +75,35 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     }
 }
 
-bool is_http_header(int first_linelen, const guchar *first_line){
-    if ((first_linelen >= 5 && strncmp(firstline, "HTTP/", 5) == 0) ||
-		(first_linelen >= 3 && strncmp(firstline, "ICY", 3) == 0) ||
-        (first_linelen >= 3 && strncmp(firstline, "GET", 3) == 0) ||
-		(first_linelen >= 3 && strncmp(firstline, "PUT", 3) == 0) ||
-        (first_linelen >= 4 && strncmp(firstline, "COPY", 4) == 0) ||
-		(first_linelen >= 4 && strncmp(firstline, "HEAD", 4) == 0) ||
-		(first_linelen >= 4 && strncmp(firstline, "LOCK", 4) == 0) ||
-		(first_linelen >= 4 && strncmp(firstline, "MOVE", 4) == 0) ||
-		(first_linelen >= 4 && strncmp(firstline, "POLL", 4) == 0) ||
-		(first_linelen >= 4 && strncmp(firstline, "POST", 4) == 0) ||
-        (first_linelen >= 5 && strncmp(firstline, "BCOPY", 5) == 0) ||
-		(first_linelen >= 5 && strncmp(firstline, "BMOVE", 5) == 0) ||
-		(first_linelen >= 5 && strncmp(firstline, "MKCOL", 5) == 0) ||
-		(first_linelen >= 5 && strncmp(firstline, "TRACE", 5) == 0) ||
-		(first_linelen >= 5 && strncmp(firstline, "PATCH", 5) == 0) ||  
-		(first_linelen >= 5 && strncmp(firstline, "LABEL", 5) == 0) ||  
-		(first_linelen >= 5 && strncmp(firstline, "MERGE", 5) == 0) ||
-        (first_linelen >= 6 && strncmp(firstline, "DELETE", 6) == 0) ||
-		(first_linelen >= 6 && strncmp(firstline, "SEARCH", 6) == 0) ||
-		(first_linelen >= 6 && strncmp(firstline, "UNLOCK", 6) == 0) ||
-		(first_linelen >= 6 && strncmp(firstline, "REPORT", 6) == 0) || 
-		(first_linelen >= 6 && strncmp(firstline, "UPDATE", 6) == 0)) {
+static int 
+is_http_header(int first_linelen, const guchar *first_line) {
+    if ((first_linelen >= 5 && strncmp(first_line, "HTTP/", 5) == 0) ||
+		(first_linelen >= 3 && strncmp(first_line, "ICY", 3) == 0) ||
+        (first_linelen >= 3 && strncmp(first_line, "GET", 3) == 0) ||
+		(first_linelen >= 3 && strncmp(first_line, "PUT", 3) == 0) ||
+        (first_linelen >= 4 && strncmp(first_line, "COPY", 4) == 0) ||
+		(first_linelen >= 4 && strncmp(first_line, "HEAD", 4) == 0) ||
+		(first_linelen >= 4 && strncmp(first_line, "LOCK", 4) == 0) ||
+		(first_linelen >= 4 && strncmp(first_line, "MOVE", 4) == 0) ||
+		(first_linelen >= 4 && strncmp(first_line, "POLL", 4) == 0) ||
+		(first_linelen >= 4 && strncmp(first_line, "POST", 4) == 0) ||
+        (first_linelen >= 5 && strncmp(first_line, "BCOPY", 5) == 0) ||
+		(first_linelen >= 5 && strncmp(first_line, "BMOVE", 5) == 0) ||
+		(first_linelen >= 5 && strncmp(first_line, "MKCOL", 5) == 0) ||
+		(first_linelen >= 5 && strncmp(first_line, "TRACE", 5) == 0) ||
+		(first_linelen >= 5 && strncmp(first_line, "PATCH", 5) == 0) ||  
+		(first_linelen >= 5 && strncmp(first_line, "LABEL", 5) == 0) ||  
+		(first_linelen >= 5 && strncmp(first_line, "MERGE", 5) == 0) ||
+        (first_linelen >= 6 && strncmp(first_line, "DELETE", 6) == 0) ||
+		(first_linelen >= 6 && strncmp(first_line, "SEARCH", 6) == 0) ||
+		(first_linelen >= 6 && strncmp(first_line, "UNLOCK", 6) == 0) ||
+		(first_linelen >= 6 && strncmp(first_line, "REPORT", 6) == 0) || 
+		(first_linelen >= 6 && strncmp(first_line, "UPDATE", 6) == 0)) {
             
-        return true;
+        return TRUE;
     }
     else {
-        return false
+        return FALSE;
     }
 }
 
