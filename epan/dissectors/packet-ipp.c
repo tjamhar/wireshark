@@ -428,14 +428,13 @@ dissect_ipp(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     operation_status = tvb_get_ntohs(tvb, 2);
     request_id       = tvb_get_ntohl(tvb, 4);
 
-    if(proto_is_frame_protocol(pinfo->layers, "ippusb")){
+    if (proto_is_frame_protocol(pinfo->layers, "ippusb")) {
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "IPPUSB");
         if (is_request)
             col_add_fstr(pinfo->cinfo, COL_INFO, "IPPUSB Request (%s)", val_to_str(operation_status, operation_vals, "0x%04x"));
         else
             col_add_fstr(pinfo->cinfo, COL_INFO, "IPPUSB Response (%s)", val_to_str(operation_status, status_vals, "0x%04x"));
-    }
-    else{
+    } else {
         col_set_str(pinfo->cinfo, COL_PROTOCOL, "IPP");
         if (is_request)
             col_add_fstr(pinfo->cinfo, COL_INFO, "IPP Request (%s)", val_to_str(operation_status, operation_vals, "0x%04x"));
