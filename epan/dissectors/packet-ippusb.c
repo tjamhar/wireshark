@@ -46,7 +46,7 @@ static tvbuff_t *return_newline_tvb = NULL;
 
 void proto_register_ippusb(void);
 void proto_reg_handoff_ippusb(void);
-static gint is_http_header(gint first_linelen, const guchar *first_line);
+static gint is_http_header(guint first_linelen, const guchar *first_line);
 
 static gint proto_ippusb = -1;
 static gint ett_ippusb = -1;
@@ -199,12 +199,12 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     proto_item *ti;
     gint offset = 0;
     gint ret;
-    gint first_linelen;
+    guint first_linelen;
     const guchar *first_line;
     gint next_offset;
     guint8 last;
     guint8 status_code;
-    const guchar *last_chunk;
+    const guchar *last_chunk = NULL;
     struct ippusb_analysis *ippusbd = NULL;
     conversation_t *conv = NULL;
 
@@ -235,16 +235,14 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
     last = tvb_get_guint8(tvb, captured_length - 1);
     status_code = tvb_get_bits8(tvb, 3 * BITS_PER_BYTE, BITS_PER_BYTE);
 
+    /* If segment has length of last chunk from chunk transfer */
     if(captured_length == CHUNK_LENGTH_MIN){
         last_chunk = tvb_get_ptr(tvb, offset, captured_length);
     }
-    else {
-        last_chunk = NULL;
-    }
 
     if (is_http_header(first_linelen, first_line) && last == TAG_END_OF_ATTRIBUTES && status_code != PRINT_JOB && status_code != SEND_DOCUMENT) {
-
         /* An indiviual ippusb packet with http header */
+
         ti = proto_tree_add_item(tree, proto_ippusb, tvb, offset, -1, 0);
         ippusb_tree = proto_item_add_subtree(ti, ett_ippusb);
 
@@ -287,8 +285,8 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                     new_msp->running_size = previous_msp->running_size + captured_length;
 
                     /* THis packet has an HTTP header but is not an ipp packet */
-                    if ((first_linelen >= 14 && strncmp(first_line, "Content-Type: ", 14) == 0) &&
-                        (first_linelen < 29 || strncmp(first_line, "Content-Type: application/ipp", 29) != 0)) {
+                    if ((first_linelen >= strlen("Content-Type: ") && strncmp(first_line, "Content-Type: ", strlen("Content-Type: ")) == 0) &&
+                        (first_linelen < strlen("Content-Type: application/ipp") || strncmp(first_line, "Content-Type: application/ipp", strlen("Content-Type: application/ipp")) != 0)) {
                         new_msp->is_ipp = FALSE;
                     }
 
@@ -298,6 +296,7 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                     }
 
                     if(!(last_chunk && strncmp(last_chunk, CHUNKED_END, CHUNK_LENGTH_MIN) == 0)){
+                        /* If this segment is not the last chunk in a chunked transfer */
 
                         if (captured_length < reported_length && (new_msp->document & MSP_HAS_DOCUMENT)) {
                             /* The attached document segment is smaller than it says it should be and cannot be reaseembled properly */
@@ -324,7 +323,7 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                         ippusb_last_pdu = pinfo->num;
                     }
                     else {
-                        /* This segment contains the end of ipp information */
+                        /* This segment contains the end of ipp chunked transfer information */
 
                         new_msp->finished = TRUE;
                         ippusb_last_pdu = -1;
@@ -391,6 +390,8 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                     current_msp->reassembled = TRUE;
                 }
                 else {
+                    /* Packet has already been reassembled */
+
                     head = fragment_get_reassembled_id(&ippusb_reassembly_table, pinfo, current_msp->first_frame);
                 }
 
@@ -407,7 +408,7 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
                 }
             }
             else if ((last_chunk && strncmp(last_chunk, CHUNKED_END, CHUNK_LENGTH_MIN) == 0)) {
-                /* This is the last segment of the reassembled packet */
+                /* This is the last segment of the chunked transfer and reassembled packet */
 
                 ti = proto_tree_add_item(tree, proto_ippusb, tvb, offset, -1, 0);
                 ippusb_tree = proto_item_add_subtree(ti, ett_ippusb);
@@ -423,6 +424,7 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 
                     col_append_fstr(pinfo->cinfo, COL_INFO, " Reassembled Data");
 
+                    /* If the document was truncated mark it as such in the UX */
                     if (current_msp->document & MSP_DOCUMENT_TRUNCATED) {
                         col_append_fstr(pinfo->cinfo, COL_INFO, " Document Truncated");
                     }
@@ -442,10 +444,10 @@ dissect_ippusb(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void* data)
 }
 
 static gint
-is_http_header(gint first_linelen, const guchar *first_line) {
-    if ((first_linelen >= 5 && strncmp(first_line, "HTTP/", 5) == 0) ||
-        (first_linelen >= 9 && strncmp(first_line, "POST /ipp", 9) == 0) ||
-        (first_linelen >= 11 && strncmp(first_line, "POST / HTTP", 11) == 0)) {
+is_http_header(guint first_linelen, const guchar *first_line) {
+    if ((first_linelen >= strlen("HTTP/") && strncmp(first_line, "HTTP/", strlen("HTTP/")) == 0) ||
+        (first_linelen >= strlen("POST /ipp") && strncmp(first_line, "POST /ipp", strlen("POST /ipp")) == 0) ||
+        (first_linelen >= strlen("POST / HTTP") && strncmp(first_line, "POST / HTTP", strlen("POST / HTTP")) == 0)) {
 
         return TRUE;
     }
